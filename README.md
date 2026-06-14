@@ -1,6 +1,6 @@
 # Serverless Meta Services Synthetic Monitoring & Observability Pipeline
 
-An enterprise-grade, event-driven synthetic monitoring solution that monitors the availability and latency of core Meta login endpoints (`Facebook`, `Messenger`, `Instagram`). This pipeline decouples data ingestion, persistence, and visualization layers to provide a zero-maintenance, highly resilient monitoring stack operating **100% within the AWS Free Tier ($0.00/mo)**.
+Event-driven synthetic monitoring solution that monitors the availability and latency of core Meta login endpoints (`Facebook`, `Messenger`, `Instagram`). This pipeline decouples data ingestion, persistence, and visualization layers to provide a zero-maintenance, highly resilient monitoring stack operating **100% within the AWS Free Tier ($0.00/mo)**.
 
 ## 📊 System Architecture
 
