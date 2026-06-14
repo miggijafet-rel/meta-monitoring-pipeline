@@ -79,7 +79,7 @@ st.markdown("---")
 st.write("🛠️ **SRE Admin Tools**")
 
 # Replace this with your actual webhook URL for local testing
-TEST_DISCORD_WEBHOOK = "DISCORD_WEBHOOK_URL"
+TEST_DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK_URL")
 
 if st.button("🚨 Trigger Test Fire Alert"):
     import urllib3
