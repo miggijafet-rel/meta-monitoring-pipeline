@@ -2,13 +2,14 @@ import json
 import time
 import urllib3
 import boto3
+import os  # Added missing import to parse environment variables safely
 from datetime import datetime
 
 # Initialize DynamoDB resource
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('ServiceStatusLogs')
 
-# TODO: Replace this with your actual Discord Webhook URL string
+# Safely read the webhook from AWS Lambda Environment Variables
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 SERVICES = {
@@ -19,6 +20,10 @@ SERVICES = {
 
 def send_discord_alert(service_name, status, details):
     """Sends a formatted alert message to your Discord channel."""
+    if not DISCORD_WEBHOOK_URL:
+        print("ERROR: DISCORD_WEBHOOK_URL is not configured in environment variables.")
+        return
+
     http = urllib3.PoolManager()
     payload = {
         "content": f"🚨 **SRE ALERT:** {service_name} status is **{status.upper()}**!",
@@ -53,25 +58,29 @@ def lambda_handler(event, context):
             start_time = time.time()
             response = http.request('GET', url, headers={"User-Agent": "AWS-Lambda-SRE-Probe"})
             latency = round((time.time() - start_time) * 1000, 2)
-            
-            if response.status < 400:
-                status = "Healthy"
-                # SRE Latency SLA breach check (Alert if page response takes > 1.5 seconds)
-                if latency > 1500:
-                    send_discord_alert(service_name, "Degraded Latency", f"Latency spikes to {latency}ms")
-            else:
-                status = "Degraded"
-                send_discord_alert(service_name, "Degraded", f"HTTP Status Code: {response.status}")
-                
             response_code = response.status
             
+            # 1. Determine baseline operational status for database tracking
+            if response_code < 400:
+                status = "Healthy"
+            elif response_code == 429:
+                status = "Rate Limited"
+            else:
+                status = "Degraded"
+            
+            # 2. SRE Threshold Filter: Alert only on 5xx Server Outages or 429 Rate Limits
+            # Latency noise is completely dropped from this alerting layer.
+            if 500 <= response_code <= 599 or response_code == 429:
+                send_discord_alert(service_name, status, f"HTTP Status Code: {response_code}")
+                
         except Exception as e:
+            # Handle hard timeouts, DNS failure, or connection drops
             status = "Down"
             latency = 0.0
             response_code = "TIMEOUT_OR_CONNECTION_ERROR"
             send_discord_alert(service_name, "Down", str(e))
             
-        # Write metrics to DynamoDB table
+        # 3. Persistent Metrics Logging: Keep tracking everything for the Streamlit dashboard
         table.put_item(
             Item={
                 'ServiceName': service_name,
@@ -84,5 +93,5 @@ def lambda_handler(event, context):
         
     return {
         'statusCode': 200,
-        'body': json.dumps('Metrics processed and database updated.')
+        'body': json.dumps('Metrics processed and database updated cleanly.')
     }
